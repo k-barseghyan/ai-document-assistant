@@ -1,4 +1,3 @@
-cat > README.md <<'EOF'
 # AI Document Assistant
 
 A production-style AI backend service built with FastAPI.
