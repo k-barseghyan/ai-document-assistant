@@ -1,14 +1,15 @@
-from app.exceptions import EmptyAnswerError
+from app.llm.ollama_client import OllamaClient
 from app.schemas import AnswerResponse, QuestionRequest
 
 
 class QuestionService:
-    def answer_question(self, request: QuestionRequest) -> AnswerResponse:
-        if request.question.lower() == "simulate failure":
-            raise EmptyAnswerError("Could not generate an answer")
+    def __init__(self, llm_client: OllamaClient):
+        self.llm_client = llm_client
 
-        return AnswerResponse(answer=f"You asked: {request.question}")
+    def answer_question(self, request: QuestionRequest) -> AnswerResponse:
+        answer = self.llm_client.generate(request.question)
+        return AnswerResponse(answer=answer)
 
 
 def get_question_service() -> QuestionService:
-    return QuestionService()
+    return QuestionService(llm_client=OllamaClient())
