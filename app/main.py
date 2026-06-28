@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from app.exceptions import EmptyAnswerError, LLMClientError
+from app.routers.chat import router as chat_router
 from app.routers.questions import router as questions_router
 
 app = FastAPI(title="AI Document Assistant")
@@ -44,3 +45,4 @@ def health():
 
 
 app.include_router(questions_router)
+app.include_router(chat_router)

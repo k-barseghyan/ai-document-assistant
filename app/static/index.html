@@ -15,48 +15,68 @@
     body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
+      display: flex;
+      justify-content: center;
       padding: 24px;
       box-sizing: border-box;
     }
 
     main {
       width: min(760px, 100%);
+      min-height: min(760px, calc(100vh - 48px));
       background: #ffffff;
       border: 1px solid #dde2ea;
       border-radius: 8px;
       padding: 24px;
       box-shadow: 0 16px 45px rgba(20, 32, 50, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
     h1 {
-      margin: 0 0 16px;
+      margin: 0;
       font-size: 28px;
       line-height: 1.2;
     }
 
-    form {
-      display: grid;
+    .header {
+      display: flex;
+      justify-content: space-between;
       gap: 12px;
+      align-items: center;
+    }
+
+    form {
+      display: flex;
+      gap: 10px;
+      align-items: end;
     }
 
     label {
+      display: block;
+      margin-bottom: 6px;
       font-weight: 650;
     }
 
+    .input-wrap {
+      flex: 1;
+    }
+
     textarea {
-      min-height: 132px;
+      width: 100%;
+      min-height: 54px;
+      max-height: 160px;
       resize: vertical;
       padding: 12px;
       border: 1px solid #b9c2d0;
       border-radius: 8px;
       font: inherit;
       line-height: 1.5;
+      box-sizing: border-box;
     }
 
     button {
-      justify-self: start;
       border: 0;
       border-radius: 8px;
       background: #175cd3;
@@ -72,60 +92,144 @@
       opacity: 0.65;
     }
 
-    .result {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e9f0;
+    .secondary {
+      background: #eef2f7;
+      color: #172033;
     }
 
-    .answer,
-    .error {
+    .messages {
+      flex: 1;
+      min-height: 360px;
+      overflow-y: auto;
+      border: 1px solid #e5e9f0;
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfcfe;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .empty {
+      margin: auto;
+      color: #667085;
+      text-align: center;
+    }
+
+    .message {
+      max-width: min(82%, 620px);
+      padding: 10px 12px;
+      border-radius: 8px;
       white-space: pre-wrap;
       line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: #175cd3;
+      color: #ffffff;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: #eef2f7;
+      color: #172033;
     }
 
     .error {
       color: #b42318;
       font-weight: 650;
+      min-height: 24px;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      main {
+        min-height: calc(100vh - 24px);
+        padding: 16px;
+      }
+
+      .header,
+      form {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
   <main>
-    <h1>AI Document Assistant</h1>
-    <form id="question-form">
-      <label for="question">Question</label>
-      <textarea id="question" name="question" minlength="3" maxlength="500" required
-        placeholder="Explain optimistic locking in one paragraph"></textarea>
-      <button id="submit-button" type="submit">Ask</button>
-    </form>
-    <section class="result" aria-live="polite">
-      <div id="answer" class="answer"></div>
-      <div id="error" class="error"></div>
+    <div class="header">
+      <h1>AI Document Assistant</h1>
+      <button id="clear-button" class="secondary" type="button">Clear chat</button>
+    </div>
+    <section id="messages" class="messages" aria-live="polite">
+      <div id="empty-state" class="empty">Ask a question to start chatting.</div>
     </section>
+    <form id="chat-form">
+      <div class="input-wrap">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" required
+          placeholder="Explain optimistic locking in one paragraph"></textarea>
+      </div>
+      <button id="submit-button" type="submit">Send</button>
+    </form>
+    <div id="error" class="error" role="alert"></div>
   </main>
 
   <script>
-    const form = document.querySelector("#question-form");
-    const question = document.querySelector("#question");
+    const form = document.querySelector("#chat-form");
+    const messageInput = document.querySelector("#message");
     const submitButton = document.querySelector("#submit-button");
-    const answer = document.querySelector("#answer");
+    const clearButton = document.querySelector("#clear-button");
+    const messagesEl = document.querySelector("#messages");
+    const emptyState = document.querySelector("#empty-state");
     const error = document.querySelector("#error");
+    const messages = [];
+
+    function scrollToLatestMessage() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function appendMessage(role, content) {
+      emptyState.hidden = true;
+
+      const bubble = document.createElement("div");
+      bubble.className = `message ${role}`;
+      bubble.textContent = content;
+      messagesEl.appendChild(bubble);
+      scrollToLatestMessage();
+    }
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      answer.textContent = "";
+      const content = messageInput.value.trim();
+      if (!content) {
+        return;
+      }
+
       error.textContent = "";
+      messages.push({ role: "user", content });
+      appendMessage("user", content);
+      messageInput.value = "";
       submitButton.disabled = true;
-      submitButton.textContent = "Asking...";
+      submitButton.textContent = "Sending...";
 
       try {
-        const response = await fetch("/questions/ask", {
+        const response = await fetch("/chat/message", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ question: question.value }),
+          body: JSON.stringify({ messages }),
         });
         const data = await response.json();
 
@@ -133,13 +237,24 @@
           throw new Error(data.message || data.detail || "Request failed");
         }
 
-        answer.textContent = data.answer || "";
+        const answer = data.answer || "";
+        messages.push({ role: "assistant", content: answer });
+        appendMessage("assistant", answer);
       } catch (err) {
         error.textContent = err.message || "Something went wrong";
       } finally {
         submitButton.disabled = false;
-        submitButton.textContent = "Ask";
+        submitButton.textContent = "Send";
+        messageInput.focus();
       }
+    });
+
+    clearButton.addEventListener("click", () => {
+      messages.length = 0;
+      messagesEl.querySelectorAll(".message").forEach((message) => message.remove());
+      emptyState.hidden = false;
+      error.textContent = "";
+      messageInput.focus();
     });
   </script>
 </body>
