@@ -50,7 +50,7 @@ class OllamaClient:
             "num_predict": (
                 chat_num_predict
                 if chat_num_predict is not None
-                else int(os.getenv("OLLAMA_CHAT_NUM_PREDICT", "400"))
+                else int(os.getenv("OLLAMA_CHAT_NUM_PREDICT", "1000"))
             ),
             "temperature": (
                 chat_temperature
@@ -120,6 +120,9 @@ class OllamaClient:
 
         answer = data.get("message", {}).get("content", "")
         if not answer.strip():
-            raise EmptyAnswerError("Ollama returned an empty answer")
+            raise EmptyAnswerError(
+                "Ollama returned an empty chat answer. Try increasing "
+                "OLLAMA_CHAT_NUM_PREDICT or reducing model reasoning output."
+            )
 
         return answer

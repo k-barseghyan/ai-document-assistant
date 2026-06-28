@@ -10,7 +10,7 @@ services:
       OLLAMA_TIMEOUT_SECONDS: 300
       OLLAMA_API_TEMPERATURE: "0"
       OLLAMA_CHAT_TEMPERATURE: "0.7"
-      OLLAMA_CHAT_NUM_PREDICT: "400"
+      OLLAMA_CHAT_NUM_PREDICT: "1000"
     depends_on:
       - ollama
 
