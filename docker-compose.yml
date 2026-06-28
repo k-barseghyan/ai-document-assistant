@@ -8,6 +8,10 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: qwen3:4b
       OLLAMA_TIMEOUT_SECONDS: 300
+      OLLAMA_API_TEMPERATURE: "0"
+      OLLAMA_API_NUM_PREDICT: "200"
+      OLLAMA_CHAT_TEMPERATURE: "0.7"
+      OLLAMA_CHAT_NUM_PREDICT: "400"
     depends_on:
       - ollama
 

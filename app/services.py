@@ -3,7 +3,7 @@ from app.schemas import AnswerResponse, ChatRequest, ChatResponse, QuestionReque
 
 
 DEFAULT_CHAT_SYSTEM_MESSAGE = (
-    "You are a helpful AI assistant. Answer clearly and concisely."
+    "You are a helpful AI assistant. Answer clearly and naturally."
 )
 
 
