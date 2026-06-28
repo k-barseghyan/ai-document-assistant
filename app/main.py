@@ -1,160 +1,14 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from app.exceptions import EmptyAnswerError, LLMClientError
 from app.routers.questions import router as questions_router
 
 app = FastAPI(title="AI Document Assistant")
 
-
-CHAT_PAGE = """
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Document Assistant</title>
-  <style>
-    :root {
-      color-scheme: light;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f6f7f9;
-      color: #172033;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      box-sizing: border-box;
-    }
-
-    main {
-      width: min(760px, 100%);
-      background: #ffffff;
-      border: 1px solid #dde2ea;
-      border-radius: 8px;
-      padding: 24px;
-      box-shadow: 0 16px 45px rgba(20, 32, 50, 0.08);
-    }
-
-    h1 {
-      margin: 0 0 16px;
-      font-size: 28px;
-      line-height: 1.2;
-    }
-
-    form {
-      display: grid;
-      gap: 12px;
-    }
-
-    label {
-      font-weight: 650;
-    }
-
-    textarea {
-      min-height: 132px;
-      resize: vertical;
-      padding: 12px;
-      border: 1px solid #b9c2d0;
-      border-radius: 8px;
-      font: inherit;
-      line-height: 1.5;
-    }
-
-    button {
-      justify-self: start;
-      border: 0;
-      border-radius: 8px;
-      background: #175cd3;
-      color: #ffffff;
-      padding: 10px 16px;
-      font: inherit;
-      font-weight: 650;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.65;
-    }
-
-    .result {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e9f0;
-    }
-
-    .answer,
-    .error {
-      white-space: pre-wrap;
-      line-height: 1.55;
-    }
-
-    .error {
-      color: #b42318;
-      font-weight: 650;
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>AI Document Assistant</h1>
-    <form id="question-form">
-      <label for="question">Question</label>
-      <textarea id="question" name="question" minlength="3" maxlength="500" required
-        placeholder="Explain optimistic locking in one paragraph"></textarea>
-      <button id="submit-button" type="submit">Ask</button>
-    </form>
-    <section class="result" aria-live="polite">
-      <div id="answer" class="answer"></div>
-      <div id="error" class="error"></div>
-    </section>
-  </main>
-
-  <script>
-    const form = document.querySelector("#question-form");
-    const question = document.querySelector("#question");
-    const submitButton = document.querySelector("#submit-button");
-    const answer = document.querySelector("#answer");
-    const error = document.querySelector("#error");
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      answer.textContent = "";
-      error.textContent = "";
-      submitButton.disabled = true;
-      submitButton.textContent = "Asking...";
-
-      try {
-        const response = await fetch("/questions/ask", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ question: question.value }),
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || data.detail || "Request failed");
-        }
-
-        answer.textContent = data.answer || "";
-      } catch (err) {
-        error.textContent = err.message || "Something went wrong";
-      } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = "Ask";
-      }
-    });
-  </script>
-</body>
-</html>
-"""
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @app.exception_handler(EmptyAnswerError)
@@ -181,7 +35,7 @@ def llm_client_error_handler(request: Request, exc: LLMClientError):
 
 @app.get("/", response_class=HTMLResponse)
 def chat_page():
-    return CHAT_PAGE
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html")
 
 
 @app.get("/health")

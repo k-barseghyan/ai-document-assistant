@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import httpx
@@ -10,11 +12,17 @@ class OllamaClient:
         self,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: float = 120.0,
+        timeout: float | None = None,
     ):
-        self.base_url = (base_url or os.getenv("OLLAMA_BASE_URL") or "http://localhost:11434").rstrip("/")
+        self.base_url = (
+            base_url or os.getenv("OLLAMA_BASE_URL") or "http://localhost:11434"
+        ).rstrip("/")
         self.model = model or os.getenv("OLLAMA_MODEL") or "qwen3:14b"
-        self.timeout = timeout
+        self.timeout = (
+            timeout
+            if timeout is not None
+            else float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "300"))
+        )
 
     def generate(self, prompt: str) -> str:
         try:
@@ -32,6 +40,10 @@ class OllamaClient:
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
             raise LLMClientError(f"Ollama request failed with HTTP {status_code}") from exc
+        except httpx.TimeoutException as exc:
+            raise LLMClientError("Ollama request timed out") from exc
+        except httpx.ConnectError as exc:
+            raise LLMClientError("Could not connect to Ollama") from exc
         except httpx.RequestError as exc:
             raise LLMClientError("Could not connect to Ollama") from exc
         except ValueError as exc:
