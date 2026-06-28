@@ -34,17 +34,18 @@ class OllamaClient:
             else float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "300"))
         )
         self.api_options = {
-            "num_predict": (
-                api_num_predict
-                if api_num_predict is not None
-                else int(os.getenv("OLLAMA_API_NUM_PREDICT", "200"))
-            ),
             "temperature": (
                 api_temperature
                 if api_temperature is not None
                 else float(os.getenv("OLLAMA_API_TEMPERATURE", "0"))
             ),
         }
+        api_num_predict_env = os.getenv("OLLAMA_API_NUM_PREDICT")
+        if api_num_predict is not None:
+            self.api_options["num_predict"] = api_num_predict
+        elif api_num_predict_env is not None and api_num_predict_env.strip():
+            self.api_options["num_predict"] = int(api_num_predict_env)
+
         self.chat_options = {
             "num_predict": (
                 chat_num_predict
