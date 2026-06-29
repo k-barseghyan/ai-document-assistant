@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from app.exceptions import EmptyAnswerError, LLMClientError
 from app.routers.chat import router as chat_router
+from app.routers.dev import router as dev_router
 from app.routers.questions import router as questions_router
 from app.vector_store.qdrant_client import QdrantVectorStoreClient
 
@@ -69,3 +70,4 @@ def qdrant_health():
 
 app.include_router(questions_router)
 app.include_router(chat_router)
+app.include_router(dev_router)
