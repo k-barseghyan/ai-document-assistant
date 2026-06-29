@@ -110,3 +110,8 @@ class RetrievedChunkResponse(BaseModel):
 
 class DevRetrieveResponse(BaseModel):
     matches: list[RetrievedChunkResponse]
+
+
+class DevVectorStoreClearResponse(BaseModel):
+    collection: str
+    deleted: bool

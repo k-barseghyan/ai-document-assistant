@@ -10,6 +10,7 @@ from app.schemas import (
     DevEmbeddingResponse,
     DevRetrieveRequest,
     DevRetrieveResponse,
+    DevVectorStoreClearResponse,
     RetrievedChunkResponse,
 )
 from app.vector_store.qdrant_client import QdrantVectorStoreClient
@@ -112,4 +113,22 @@ def retrieve_chunks(
             )
             for match in matches
         ],
+    )
+
+
+@router.delete("/vector-store/clear", response_model=DevVectorStoreClearResponse)
+def clear_vector_store(
+    vector_store: QdrantVectorStoreClient = Depends(get_vector_store_client),
+):
+    try:
+        deleted = vector_store.delete_collection()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not clear Qdrant collection",
+        ) from exc
+
+    return DevVectorStoreClearResponse(
+        collection=vector_store.collection_name,
+        deleted=deleted,
     )

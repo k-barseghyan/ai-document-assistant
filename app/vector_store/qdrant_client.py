@@ -46,6 +46,13 @@ class QdrantVectorStoreClient:
     def collection_exists(self) -> bool:
         return self.client.collection_exists(collection_name=self.collection_name)
 
+    def delete_collection(self) -> bool:
+        if not self.collection_exists():
+            return False
+
+        self.client.delete_collection(collection_name=self.collection_name)
+        return True
+
     def create_collection(self, vector_size: int) -> None:
         if vector_size <= 0:
             raise ValueError("vector_size must be positive")
