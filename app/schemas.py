@@ -41,6 +41,13 @@ class ChatResponse(BaseModel):
     answer: str
 
 
+class DocumentUploadResponse(BaseModel):
+    document_id: str
+    filename: str
+    chunk_count: int
+    stored_chunk_count: int
+
+
 class DevEmbeddingRequest(BaseModel):
     text: str = Field(min_length=1)
 
