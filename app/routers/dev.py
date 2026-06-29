@@ -8,13 +8,21 @@ from app.schemas import (
     DevChunksResponse,
     DevEmbeddingRequest,
     DevEmbeddingResponse,
+    DevRetrieveRequest,
+    DevRetrieveResponse,
+    RetrievedChunkResponse,
 )
+from app.vector_store.qdrant_client import QdrantVectorStoreClient
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 
 
 def get_embedding_client() -> OllamaEmbeddingClient:
     return OllamaEmbeddingClient()
+
+
+def get_vector_store_client() -> QdrantVectorStoreClient:
+    return QdrantVectorStoreClient()
 
 
 @router.post("/embeddings", response_model=DevEmbeddingResponse)
@@ -50,5 +58,58 @@ def create_chunks(request: DevChunksRequest):
                 preview=chunk.text[:PREVIEW_CHARS],
             )
             for chunk in chunks
+        ],
+    )
+
+
+@router.post("/retrieve", response_model=DevRetrieveResponse)
+def retrieve_chunks(
+    request: DevRetrieveRequest,
+    embedding_client: OllamaEmbeddingClient = Depends(get_embedding_client),
+    vector_store: QdrantVectorStoreClient = Depends(get_vector_store_client),
+):
+    try:
+        if not vector_store.collection_exists():
+            raise HTTPException(
+                status_code=404,
+                detail="No documents have been ingested yet",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not connect to Qdrant",
+        ) from exc
+
+    try:
+        question_vector = embedding_client.embed_text(request.question)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        matches = vector_store.search_similar_chunks(
+            query_vector=question_vector,
+            limit=request.limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not search Qdrant",
+        ) from exc
+
+    return DevRetrieveResponse(
+        matches=[
+            RetrievedChunkResponse(
+                score=match.score,
+                document_id=match.document_id,
+                filename=match.filename,
+                chunk_index=match.chunk_index,
+                text=match.text,
+                char_count=match.char_count,
+            )
+            for match in matches
         ],
     )

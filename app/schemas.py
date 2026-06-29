@@ -85,3 +85,28 @@ class DevChunkPreview(BaseModel):
 class DevChunksResponse(BaseModel):
     chunk_count: int
     chunks: list[DevChunkPreview]
+
+
+class DevRetrieveRequest(BaseModel):
+    question: str = Field(min_length=1)
+    limit: int = Field(default=3, ge=1, le=10)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("question must be non-empty")
+        return value
+
+
+class RetrievedChunkResponse(BaseModel):
+    score: float
+    document_id: str
+    filename: str
+    chunk_index: int
+    text: str
+    char_count: int
+
+
+class DevRetrieveResponse(BaseModel):
+    matches: list[RetrievedChunkResponse]
