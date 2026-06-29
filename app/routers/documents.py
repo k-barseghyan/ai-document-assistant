@@ -1,5 +1,5 @@
+from hashlib import sha256
 from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
@@ -54,7 +54,8 @@ async def upload_document(
     if not chunks:
         raise HTTPException(status_code=400, detail="Uploaded text produced no chunks")
 
-    document_id = str(uuid4())
+    document_hash = sha256(file_bytes).hexdigest()
+    document_id = document_hash
     first_embedding = embedding_client.embed_text(chunks[0].text)
 
     try:
@@ -73,6 +74,7 @@ async def upload_document(
     try:
         stored_chunk_count = vector_store.upsert_chunks(
             document_id=document_id,
+            document_hash=document_hash,
             filename=filename,
             chunks=chunks,
             embeddings=embeddings,

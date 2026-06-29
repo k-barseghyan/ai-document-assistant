@@ -102,8 +102,10 @@ class DevRetrieveRequest(BaseModel):
 class RetrievedChunkResponse(BaseModel):
     score: float
     document_id: str
+    document_hash: str
     filename: str
     chunk_index: int
+    chunk_hash: str
     text: str
     char_count: int
 

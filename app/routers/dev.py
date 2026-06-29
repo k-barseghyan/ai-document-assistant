@@ -106,8 +106,10 @@ def retrieve_chunks(
             RetrievedChunkResponse(
                 score=match.score,
                 document_id=match.document_id,
+                document_hash=match.document_hash,
                 filename=match.filename,
                 chunk_index=match.chunk_index,
+                chunk_hash=match.chunk_hash,
                 text=match.text,
                 char_count=match.char_count,
             )

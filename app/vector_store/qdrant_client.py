@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
+from hashlib import sha256
 from numbers import Real
-from uuid import uuid4
+from uuid import UUID
 
 from qdrant_client import QdrantClient, models
 
@@ -19,8 +20,10 @@ DEFAULT_QDRANT_COLLECTION = "document_chunks"
 class RetrievedChunk:
     score: float
     document_id: str
+    document_hash: str
     filename: str
     chunk_index: int
+    chunk_hash: str
     text: str
     char_count: int
 
@@ -68,6 +71,7 @@ class QdrantVectorStoreClient:
     def upsert_chunks(
         self,
         document_id: str,
+        document_hash: str,
         filename: str,
         chunks: Sequence[TextChunk],
         embeddings: Sequence[Sequence[float]],
@@ -75,20 +79,28 @@ class QdrantVectorStoreClient:
         if len(chunks) != len(embeddings):
             raise ValueError("chunks and embeddings must have the same length")
 
-        points = [
-            models.PointStruct(
-                id=str(uuid4()),
-                vector=[float(value) for value in embedding],
-                payload={
-                    "document_id": document_id,
-                    "filename": filename,
-                    "chunk_index": chunk.index,
-                    "text": chunk.text,
-                    "char_count": chunk.char_count,
-                },
+        points: list[models.PointStruct] = []
+        for chunk, embedding in zip(chunks, embeddings, strict=True):
+            chunk_hash = _chunk_hash(chunk.text)
+            points.append(
+                models.PointStruct(
+                    id=_point_id(
+                        document_id=document_id,
+                        chunk_index=chunk.index,
+                        chunk_hash=chunk_hash,
+                    ),
+                    vector=[float(value) for value in embedding],
+                    payload={
+                        "document_id": document_id,
+                        "document_hash": document_hash,
+                        "filename": filename,
+                        "chunk_index": chunk.index,
+                        "chunk_hash": chunk_hash,
+                        "text": chunk.text,
+                        "char_count": chunk.char_count,
+                    },
+                )
             )
-            for chunk, embedding in zip(chunks, embeddings, strict=True)
-        ]
 
         if not points:
             return 0
@@ -123,15 +135,43 @@ class QdrantVectorStoreClient:
             with_vectors=False,
         )
 
-        return [
-            RetrievedChunk(
-                score=float(point.score),
-                document_id=str(point.payload["document_id"]),
-                filename=str(point.payload["filename"]),
-                chunk_index=int(point.payload["chunk_index"]),
-                text=str(point.payload["text"]),
-                char_count=int(point.payload["char_count"]),
+        chunks: list[RetrievedChunk] = []
+        for point in response.points:
+            if point.payload is None:
+                continue
+
+            payload = point.payload
+            text = str(payload["text"])
+            document_id = str(payload["document_id"])
+            chunks.append(
+                RetrievedChunk(
+                    score=float(point.score),
+                    document_id=document_id,
+                    document_hash=str(payload.get("document_hash", document_id)),
+                    filename=str(payload["filename"]),
+                    chunk_index=int(payload["chunk_index"]),
+                    chunk_hash=str(payload.get("chunk_hash", _chunk_hash(text))),
+                    text=text,
+                    char_count=int(payload["char_count"]),
+                )
             )
-            for point in response.points
-            if point.payload is not None
-        ]
+
+        return chunks
+
+
+def _chunk_hash(text: str) -> str:
+    return _hash_text(_normalize_chunk_text_for_hash(text))
+
+
+def _point_id(document_id: str, chunk_index: int, chunk_hash: str) -> str:
+    point_id_hash = _hash_text(f"{document_id}:{chunk_index}:{chunk_hash}")
+    # Qdrant string point IDs are UUID-shaped, so derive one from this SHA-256.
+    return str(UUID(hex=point_id_hash[:32]))
+
+
+def _normalize_chunk_text_for_hash(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def _hash_text(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()
