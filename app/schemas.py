@@ -56,3 +56,25 @@ class DevEmbeddingResponse(BaseModel):
     model: str
     dimension: int
     preview: list[float]
+
+
+class DevChunksRequest(BaseModel):
+    text: str = Field(min_length=1)
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("text must be non-empty")
+        return value
+
+
+class DevChunkPreview(BaseModel):
+    index: int
+    char_count: int
+    preview: str
+
+
+class DevChunksResponse(BaseModel):
+    chunk_count: int
+    chunks: list[DevChunkPreview]
