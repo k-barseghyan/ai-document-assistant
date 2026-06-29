@@ -1,11 +1,12 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from app.exceptions import EmptyAnswerError, LLMClientError
 from app.routers.chat import router as chat_router
 from app.routers.questions import router as questions_router
+from app.vector_store.qdrant_client import QdrantVectorStoreClient
 
 app = FastAPI(title="AI Document Assistant")
 
@@ -42,6 +43,28 @@ def chat_page():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/health/qdrant")
+def qdrant_health():
+    qdrant = QdrantVectorStoreClient()
+
+    try:
+        collections = qdrant.list_collections()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "status": "error",
+                "message": "Could not connect to Qdrant",
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "collection": qdrant.collection_name,
+        "collections": collections,
+    }
 
 
 app.include_router(questions_router)
