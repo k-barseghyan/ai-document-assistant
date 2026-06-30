@@ -8,9 +8,24 @@ class QuestionRequest(BaseModel):
         description="User question about uploaded documents"
     )
 
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("question must be non-empty")
+        return value
+
+
+class AnswerSource(BaseModel):
+    filename: str
+    document_id: str
+    chunk_index: int
+    score: float
+
 
 class AnswerResponse(BaseModel):
     answer: str
+    sources: list[AnswerSource] = Field(default_factory=list)
 
 
 class ChatMessage(BaseModel):
