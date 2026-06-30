@@ -15,13 +15,14 @@ from app.vector_store.qdrant_client import QdrantVectorStoreClient, RetrievedChu
 DEFAULT_CHAT_SYSTEM_MESSAGE = (
     "You are a helpful AI assistant. Answer clearly and naturally."
 )
-NO_CONTEXT_ANSWER = "No relevant document context was found in the uploaded documents."
+NO_CONTEXT_ANSWER = "I do not know based on the uploaded documents."
 QUESTION_RETRIEVAL_LIMIT = 3
 RAG_ANSWER_INSTRUCTIONS = (
     "You must answer using only the provided document context.\n"
     'If the context does not contain the answer, say: "I do not know based on the uploaded documents."\n'
     "Keep the answer brief and direct.\n"
-    "Include source references using the format: [filename, chunk N]."
+    "Do not mention filenames, chunk numbers, source references, or citations inside the answer text.\n"
+    'The application returns sources separately in the "sources" field.'
 )
 
 
