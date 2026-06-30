@@ -16,7 +16,9 @@ DEFAULT_CHAT_SYSTEM_MESSAGE = (
     "You are a helpful AI assistant. Answer clearly and naturally."
 )
 NO_CONTEXT_ANSWER = "I do not know based on the uploaded documents."
-QUESTION_RETRIEVAL_LIMIT = 3
+QUESTION_RETRIEVAL_LIMIT = 5
+QUESTION_CONTEXT_LIMIT = 3
+MIN_RELEVANCE_SCORE = 0.55
 RAG_ANSWER_INSTRUCTIONS = (
     "You must answer using only the provided document context.\n"
     'If the context does not contain the answer, say: "I do not know based on the uploaded documents."\n'
@@ -66,10 +68,12 @@ class QuestionService:
                 detail="Could not search Qdrant",
             ) from exc
 
-        if not chunks:
+        relevant_chunks = _select_relevant_chunks(chunks)
+
+        if not relevant_chunks:
             return AnswerResponse(answer=NO_CONTEXT_ANSWER)
 
-        final_prompt = _build_rag_prompt(question=question, chunks=chunks)
+        final_prompt = _build_rag_prompt(question=question, chunks=relevant_chunks)
         answer = self.llm_client.generate(final_prompt)
         return AnswerResponse(
             answer=answer,
@@ -80,7 +84,7 @@ class QuestionService:
                     chunk_index=chunk.chunk_index,
                     score=chunk.score,
                 )
-                for chunk in chunks
+                for chunk in relevant_chunks
             ],
         )
 
@@ -142,3 +146,11 @@ def _format_context_chunk(index: int, chunk: RetrievedChunk) -> str:
 
 def _single_line(value: str) -> str:
     return " ".join(value.split())
+
+
+def _select_relevant_chunks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    return [
+        chunk
+        for chunk in chunks
+        if chunk.score >= MIN_RELEVANCE_SCORE
+    ][:QUESTION_CONTEXT_LIMIT]
