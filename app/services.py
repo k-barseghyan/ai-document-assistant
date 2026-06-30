@@ -55,7 +55,13 @@ class QuestionService:
         if not collection_exists:
             return AnswerResponse(answer=NO_CONTEXT_ANSWER)
 
-        question_vector = self.embedding_client.embed_text(question)
+        try:
+            question_vector = self.embedding_client.embed_text(question)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="Could not create question embedding",
+            ) from exc
 
         try:
             chunks = self.vector_store.search_similar_chunks(
