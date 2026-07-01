@@ -8,11 +8,14 @@ from app.schemas import (
     DevChunksResponse,
     DevEmbeddingRequest,
     DevEmbeddingResponse,
+    DevRagEvaluateRequest,
+    DevRagEvaluateResponse,
     DevRetrieveRequest,
     DevRetrieveResponse,
     DevVectorStoreClearResponse,
     RetrievedChunkResponse,
 )
+from app.services import QuestionService, get_question_service
 from app.vector_store.qdrant_client import QdrantVectorStoreClient
 
 router = APIRouter(prefix="/dev", tags=["dev"])
@@ -116,6 +119,17 @@ def retrieve_chunks(
             for match in matches
         ],
     )
+
+
+@router.post("/rag/evaluate", response_model=DevRagEvaluateResponse)
+def evaluate_rag(
+    request: DevRagEvaluateRequest,
+    question_service: QuestionService = Depends(get_question_service),
+):
+    try:
+        return question_service.evaluate_rag(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.delete("/vector-store/clear", response_model=DevVectorStoreClearResponse)

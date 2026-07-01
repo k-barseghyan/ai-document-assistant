@@ -138,6 +138,50 @@ class DevRetrieveResponse(BaseModel):
     matches: list[RetrievedChunkResponse]
 
 
+class DevRagEvaluateRequest(BaseModel):
+    question: str = Field(min_length=1)
+    answer_mode: Literal["rag_only", "hybrid"] = Field(default="rag_only")
+    expected_keywords: list[str] = Field(default_factory=list)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("question must be non-empty")
+        return value
+
+    @field_validator("expected_keywords")
+    @classmethod
+    def validate_expected_keywords(cls, value: list[str]) -> list[str]:
+        keywords = [keyword.strip() for keyword in value]
+        if any(not keyword for keyword in keywords):
+            raise ValueError("expected_keywords must contain only non-empty strings")
+        return keywords
+
+
+class DevRagEvaluateMatch(BaseModel):
+    score: float
+    filename: str
+    document_id: str
+    chunk_index: int
+    char_count: int
+    used_in_context: bool
+    preview: str
+
+
+class DevRagEvaluateResponse(BaseModel):
+    question: str
+    answer_mode: Literal["rag_only", "hybrid"]
+    retrieval_limit: int
+    context_limit: int
+    min_relevance_score: float
+    retrieved_count: int
+    used_context_count: int
+    matches: list[DevRagEvaluateMatch]
+    answer: str
+    missing_expected_keywords: list[str]
+
+
 class DevVectorStoreClearResponse(BaseModel):
     collection: str
     deleted: bool
