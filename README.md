@@ -38,3 +38,12 @@ Create and activate a virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
+
+Optional RAG retrieval settings:
+
+```bash
+RAG_RETRIEVAL_LIMIT=5
+RAG_CONTEXT_LIMIT=3
+RAG_MIN_RELEVANCE_SCORE=0.55
+```

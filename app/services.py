@@ -1,3 +1,5 @@
+import os
+
 from fastapi import HTTPException
 
 from app.embeddings.ollama_embedding_client import OllamaEmbeddingClient
@@ -12,13 +14,35 @@ from app.schemas import (
 from app.vector_store.qdrant_client import QdrantVectorStoreClient, RetrievedChunk
 
 
+def _get_int_env(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    try:
+        return int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+
+
+def _get_float_env(name: str, default: float) -> float:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    try:
+        return float(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number") from exc
+
+
 DEFAULT_CHAT_SYSTEM_MESSAGE = (
     "You are a helpful AI assistant. Answer clearly and naturally."
 )
 NO_CONTEXT_ANSWER = "I do not know based on the uploaded documents."
-QUESTION_RETRIEVAL_LIMIT = 5
-QUESTION_CONTEXT_LIMIT = 3
-MIN_RELEVANCE_SCORE = 0.55
+RAG_RETRIEVAL_LIMIT = _get_int_env("RAG_RETRIEVAL_LIMIT", 5)
+RAG_CONTEXT_LIMIT = _get_int_env("RAG_CONTEXT_LIMIT", 3)
+RAG_MIN_RELEVANCE_SCORE = _get_float_env("RAG_MIN_RELEVANCE_SCORE", 0.55)
 RAG_ANSWER_INSTRUCTIONS = (
     "You must answer using only the provided document context.\n"
     'If the context does not contain the answer, say: "I do not know based on the uploaded documents."\n'
@@ -26,6 +50,23 @@ RAG_ANSWER_INSTRUCTIONS = (
     "Do not mention filenames, chunk numbers, source references, or citations inside the answer text.\n"
     'The application returns sources separately in the "sources" field.'
 )
+
+
+def _validate_rag_config() -> None:
+    if RAG_RETRIEVAL_LIMIT <= 0:
+        raise ValueError("RAG_RETRIEVAL_LIMIT must be positive")
+
+    if RAG_CONTEXT_LIMIT <= 0:
+        raise ValueError("RAG_CONTEXT_LIMIT must be positive")
+
+    if not 0 <= RAG_MIN_RELEVANCE_SCORE <= 1:
+        raise ValueError("RAG_MIN_RELEVANCE_SCORE must be between 0 and 1 inclusive")
+
+    if RAG_CONTEXT_LIMIT > RAG_RETRIEVAL_LIMIT:
+        raise ValueError("RAG_CONTEXT_LIMIT must not exceed RAG_RETRIEVAL_LIMIT")
+
+
+_validate_rag_config()
 
 
 class QuestionService:
@@ -66,7 +107,7 @@ class QuestionService:
         try:
             chunks = self.vector_store.search_similar_chunks(
                 query_vector=question_vector,
-                limit=QUESTION_RETRIEVAL_LIMIT,
+                limit=RAG_RETRIEVAL_LIMIT,
             )
         except Exception as exc:
             raise HTTPException(
@@ -158,5 +199,5 @@ def _select_relevant_chunks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk
     return [
         chunk
         for chunk in chunks
-        if chunk.score >= MIN_RELEVANCE_SCORE
-    ][:QUESTION_CONTEXT_LIMIT]
+        if chunk.score >= RAG_MIN_RELEVANCE_SCORE
+    ][:RAG_CONTEXT_LIMIT]
