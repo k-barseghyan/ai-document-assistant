@@ -88,7 +88,7 @@ Response shape:
   "matches": [
     {
       "score": 0.82,
-      "filename": "policy.pdf",
+      "filename": "policy.txt",
       "document_id": "doc-123",
       "chunk_index": 0,
       "char_count": 1180,
