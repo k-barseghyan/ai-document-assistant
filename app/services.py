@@ -66,11 +66,11 @@ RAG_ONLY_ANSWER_INSTRUCTIONS = (
 )
 HYBRID_ANSWER_INSTRUCTIONS = (
     "Use the uploaded document context first when it contains relevant information.\n"
-    "If the document context is missing or incomplete, you may add general model knowledge.\n"
-    "Clearly separate document-supported information from general knowledge.\n"
-    "Use this response structure:\n"
-    "Document-supported answer: state what the uploaded documents support, or say the uploaded documents do not contain enough information.\n"
-    "General knowledge: add helpful general knowledge only when needed.\n"
+    "If the document context fully answers the question, answer normally from the document context.\n"
+    "If document context is missing or incomplete, say that clearly and then add general model knowledge.\n"
+    "When both document context and general knowledge are used, clearly separate them.\n"
+    "Do not invent document sources.\n"
+    "Do not imply that general knowledge came from uploaded documents.\n"
     "Keep the answer brief and direct.\n"
     "Do not mention filenames, chunk numbers, source references, or citations inside the answer text.\n"
     'The application returns document sources separately in the "sources" field.'

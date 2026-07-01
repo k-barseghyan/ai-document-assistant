@@ -31,6 +31,33 @@ The goal of this project is to build an AI document assistant step by step:
 - Pydantic
 - Uvicorn
 
+## Question Answering
+
+`POST /questions/ask`
+
+Request example:
+
+```json
+{
+  "question": "What does the document say about RAG?",
+  "answer_mode": "rag_only"
+}
+```
+
+`answer_mode` values:
+
+`rag_only`:
+
+- default
+- answers only from uploaded document context
+- returns "I do not know based on the uploaded documents." when there is no relevant document context
+
+`hybrid`:
+
+- uses uploaded document context first
+- may use general model knowledge when document context is missing or incomplete
+- sources still contain only uploaded-document chunks
+
 ## Run Locally
 
 Create and activate a virtual environment:
