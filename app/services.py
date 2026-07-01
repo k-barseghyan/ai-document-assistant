@@ -40,15 +40,40 @@ DEFAULT_CHAT_SYSTEM_MESSAGE = (
     "You are a helpful AI assistant. Answer clearly and naturally."
 )
 NO_CONTEXT_ANSWER = "I do not know based on the uploaded documents."
+RAG_ONLY_SYSTEM_MESSAGE = (
+    "You are a deterministic API assistant.\n"
+    "Answer only from the provided document context.\n"
+    "Do not use outside knowledge.\n"
+    f'If the context is insufficient, answer exactly: "{NO_CONTEXT_ANSWER}"'
+)
+HYBRID_SYSTEM_MESSAGE = (
+    "You are a deterministic API assistant.\n"
+    "Use uploaded document context when it is available.\n"
+    "When document context is missing or incomplete, you may use general knowledge.\n"
+    "Clearly distinguish document-supported information from general knowledge.\n"
+    "Do not invent document sources or imply that general knowledge came from "
+    "uploaded documents."
+)
 RAG_RETRIEVAL_LIMIT = _get_int_env("RAG_RETRIEVAL_LIMIT", 5)
 RAG_CONTEXT_LIMIT = _get_int_env("RAG_CONTEXT_LIMIT", 3)
 RAG_MIN_RELEVANCE_SCORE = _get_float_env("RAG_MIN_RELEVANCE_SCORE", 0.55)
-RAG_ANSWER_INSTRUCTIONS = (
+RAG_ONLY_ANSWER_INSTRUCTIONS = (
     "You must answer using only the provided document context.\n"
-    'If the context does not contain the answer, say: "I do not know based on the uploaded documents."\n'
+    f'If the context does not contain the answer, say: "{NO_CONTEXT_ANSWER}"\n'
     "Keep the answer brief and direct.\n"
     "Do not mention filenames, chunk numbers, source references, or citations inside the answer text.\n"
     'The application returns sources separately in the "sources" field.'
+)
+HYBRID_ANSWER_INSTRUCTIONS = (
+    "Use the uploaded document context first when it contains relevant information.\n"
+    "If the document context is missing or incomplete, you may add general model knowledge.\n"
+    "Clearly separate document-supported information from general knowledge.\n"
+    "Use this response structure:\n"
+    "Document-supported answer: state what the uploaded documents support, or say the uploaded documents do not contain enough information.\n"
+    "General knowledge: add helpful general knowledge only when needed.\n"
+    "Keep the answer brief and direct.\n"
+    "Do not mention filenames, chunk numbers, source references, or citations inside the answer text.\n"
+    'The application returns document sources separately in the "sources" field.'
 )
 
 
@@ -93,35 +118,53 @@ class QuestionService:
                 detail="Could not connect to Qdrant",
             ) from exc
 
-        if not collection_exists:
-            return AnswerResponse(answer=NO_CONTEXT_ANSWER)
+        relevant_chunks: list[RetrievedChunk] = []
+        if collection_exists:
+            try:
+                question_vector = self.embedding_client.embed_text(question)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Could not create question embedding",
+                ) from exc
 
-        try:
-            question_vector = self.embedding_client.embed_text(question)
-        except Exception as exc:
-            raise HTTPException(
-                status_code=502,
-                detail="Could not create question embedding",
-            ) from exc
+            try:
+                chunks = self.vector_store.search_similar_chunks(
+                    query_vector=question_vector,
+                    limit=RAG_RETRIEVAL_LIMIT,
+                )
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Could not search Qdrant",
+                ) from exc
 
-        try:
-            chunks = self.vector_store.search_similar_chunks(
-                query_vector=question_vector,
-                limit=RAG_RETRIEVAL_LIMIT,
+            relevant_chunks = _select_relevant_chunks(chunks)
+
+        if request.answer_mode == "rag_only":
+            if not collection_exists or not relevant_chunks:
+                return AnswerResponse(answer=NO_CONTEXT_ANSWER)
+
+            final_prompt = _build_rag_only_prompt(
+                question=question,
+                chunks=relevant_chunks,
             )
-        except Exception as exc:
-            raise HTTPException(
-                status_code=502,
-                detail="Could not search Qdrant",
-            ) from exc
+            answer = self.llm_client.generate(
+                final_prompt,
+                system=RAG_ONLY_SYSTEM_MESSAGE,
+            )
+        elif request.answer_mode == "hybrid":
+            final_prompt = _build_hybrid_prompt(
+                question=question,
+                chunks=relevant_chunks,
+            )
+            answer = self.llm_client.generate(
+                final_prompt,
+                system=HYBRID_SYSTEM_MESSAGE,
+            )
+        else:
+            raise ValueError("answer_mode must be one of: rag_only, hybrid")
 
-        relevant_chunks = _select_relevant_chunks(chunks)
-
-        if not relevant_chunks:
-            return AnswerResponse(answer=NO_CONTEXT_ANSWER)
-
-        final_prompt = _build_rag_prompt(question=question, chunks=relevant_chunks)
-        answer = self.llm_client.generate(final_prompt)
         return AnswerResponse(
             answer=answer,
             sources=[
@@ -168,15 +211,32 @@ def get_chat_service() -> ChatService:
     return ChatService(llm_client=OllamaClient())
 
 
-def _build_rag_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
+def _build_rag_only_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
     context = "\n\n".join(
         _format_context_chunk(index=index, chunk=chunk)
         for index, chunk in enumerate(chunks, start=1)
     )
 
     return (
-        f"{RAG_ANSWER_INSTRUCTIONS}\n\n"
+        f"{RAG_ONLY_ANSWER_INSTRUCTIONS}\n\n"
         f"Context:\n{context}\n\n"
+        f"Question:\n{question}\n\n"
+        "Answer:"
+    )
+
+
+def _build_hybrid_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
+    if chunks:
+        context = "\n\n".join(
+            _format_context_chunk(index=index, chunk=chunk)
+            for index, chunk in enumerate(chunks, start=1)
+        )
+    else:
+        context = "No relevant uploaded document context is available."
+
+    return (
+        f"{HYBRID_ANSWER_INSTRUCTIONS}\n\n"
+        f"Document context:\n{context}\n\n"
         f"Question:\n{question}\n\n"
         "Answer:"
     )

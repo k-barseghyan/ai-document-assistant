@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -6,6 +8,13 @@ class QuestionRequest(BaseModel):
         min_length=3,
         max_length=500,
         description="User question about uploaded documents"
+    )
+    answer_mode: Literal["rag_only", "hybrid"] = Field(
+        default="rag_only",
+        description=(
+            "Answer mode: rag_only uses only uploaded documents; hybrid uses "
+            "uploaded documents first and general model knowledge when needed"
+        ),
     )
 
     @field_validator("question")
