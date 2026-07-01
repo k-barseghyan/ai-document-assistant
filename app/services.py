@@ -160,6 +160,10 @@ class QuestionService:
             _chunk_ref(chunk)
             for chunk in retrieval.context_chunks
         }
+        context_text = "\n\n".join(
+            chunk.text
+            for chunk in retrieval.context_chunks
+        )
 
         return DevRagEvaluateResponse(
             question=question,
@@ -182,8 +186,12 @@ class QuestionService:
                 for chunk in retrieval.retrieved_chunks
             ],
             answer=answer,
-            missing_expected_keywords=_missing_expected_keywords(
-                answer=answer,
+            missing_expected_keywords_in_context=_missing_expected_keywords(
+                text=context_text,
+                expected_keywords=request.expected_keywords,
+            ),
+            missing_expected_keywords_in_answer=_missing_expected_keywords(
+                text=answer,
                 expected_keywords=request.expected_keywords,
             ),
         )
@@ -355,12 +363,12 @@ def _preview_text(text: str) -> str:
 
 
 def _missing_expected_keywords(
-    answer: str,
+    text: str,
     expected_keywords: list[str],
 ) -> list[str]:
-    normalized_answer = answer.casefold()
+    normalized_text = text.casefold()
     return [
         keyword
         for keyword in expected_keywords
-        if keyword.casefold() not in normalized_answer
+        if keyword.casefold() not in normalized_text
     ]

@@ -58,6 +58,52 @@ Request example:
 - may use general model knowledge when document context is missing or incomplete
 - sources still contain only uploaded-document chunks
 
+## Dev RAG Evaluation
+
+`POST /dev/rag/evaluate`
+
+Use this dev-only endpoint to inspect retrieval quality separately from answer-generation quality before changing the RAG stack.
+
+```bash
+curl -X POST http://localhost:8000/dev/rag/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What does the document say about refunds?",
+    "answer_mode": "rag_only",
+    "expected_keywords": ["refund", "receipt"]
+  }'
+```
+
+Response shape:
+
+```json
+{
+  "question": "What does the document say about refunds?",
+  "answer_mode": "rag_only",
+  "retrieval_limit": 5,
+  "context_limit": 3,
+  "min_relevance_score": 0.55,
+  "retrieved_count": 2,
+  "used_context_count": 1,
+  "matches": [
+    {
+      "score": 0.82,
+      "filename": "policy.pdf",
+      "document_id": "doc-123",
+      "chunk_index": 0,
+      "char_count": 1180,
+      "used_in_context": true,
+      "preview": "Refunds are available within 30 days with the original receipt..."
+    }
+  ],
+  "answer": "Refunds are available within 30 days with the original receipt.",
+  "missing_expected_keywords_in_context": [],
+  "missing_expected_keywords_in_answer": []
+}
+```
+
+`missing_expected_keywords_in_context` checks only the retrieved chunks that were actually used in the prompt. `missing_expected_keywords_in_answer` checks the generated answer text. If a keyword is missing from context, retrieval or filtering likely needs attention; if it is present in context but missing from the answer, answer generation likely needs attention.
+
 ## Run Locally
 
 Create and activate a virtual environment:

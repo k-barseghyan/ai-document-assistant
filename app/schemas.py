@@ -179,7 +179,8 @@ class DevRagEvaluateResponse(BaseModel):
     used_context_count: int
     matches: list[DevRagEvaluateMatch]
     answer: str
-    missing_expected_keywords: list[str]
+    missing_expected_keywords_in_context: list[str]
+    missing_expected_keywords_in_answer: list[str]
 
 
 class DevVectorStoreClearResponse(BaseModel):
