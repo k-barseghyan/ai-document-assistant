@@ -1,18 +1,16 @@
-# AI Document Assistant
+# AI Document Assistant — RAG Demo Application
 
-A production-style AI backend service built with FastAPI.
+A compact, local-first RAG demo application for document ingestion, vector retrieval, and source-grounded question answering using FastAPI, Ollama, Qdrant, and Docker.
 
-The goal of this project is to build an AI document assistant step by step:
+The project demonstrates the complete document RAG flow:
 
 - upload documents
-- extract text
-- chunk documents
+- extract and chunk text
 - generate embeddings
 - store chunks in a vector database
 - retrieve relevant chunks
 - answer questions with source references
 - expose the AI logic as an HTTP API
-- later integrate it with a Spring Boot backend
 
 ## Current Features
 
@@ -30,6 +28,9 @@ The goal of this project is to build an AI document assistant step by step:
 - FastAPI
 - Pydantic
 - Uvicorn
+- Ollama
+- Qdrant
+- Docker and Docker Compose
 
 ## Question Answering
 
